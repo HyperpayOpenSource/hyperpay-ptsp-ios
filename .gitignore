@@ -1,0 +1,21 @@
+# Xcode
+.DS_Store
+*.xcworkspace/
+xcuserdata/
+*.xcarchive/
+DerivedData/
+build/
+
+# CocoaPods
+Pods/
+Podfile.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Temp
+*.tmp
+.env

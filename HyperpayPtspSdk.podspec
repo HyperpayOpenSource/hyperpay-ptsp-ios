@@ -1,0 +1,21 @@
+Pod::Spec.new do |s|
+  s.name             = 'HyperpayPtspSdk'
+  s.version          = '1.0.0'
+  s.summary          = 'Hyperpay PTSP Payment SDK for iOS'
+  s.description      = 'Complete payment processing SDK with WebView integration for seamless payment experiences'
+  
+  s.homepage         = 'https://github.com/hyperpay/ptsp-sdk'
+  s.license          = { :type => 'MIT', :file => 'LICENSE' }
+  s.author           = { 'Hyperpay' => 'developer@hyperpay.com' }
+  s.source           = { :git => 'https://github.com/hyperpay/ptsp-sdk.git', :tag => s.version.to_s }
+  
+  s.ios.deployment_target = '14.0'
+  
+  s.vendored_frameworks = 'Frameworks/HyperpayPtspSdk.xcframework',
+                          'Frameworks/webview_flutter_wkwebview.xcframework'
+  
+  s.dependency 'Flutter'
+  
+  s.static_framework = true
+  s.requires_arc = true
+end
