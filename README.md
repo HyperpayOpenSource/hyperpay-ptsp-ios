@@ -4,14 +4,24 @@
 
 The Hyperpay PTSP SDK is a complete payment processing solution for iOS applications. It provides seamless integration for handling payment flows with WebView support, allowing users to complete payments and receive real-time callbacks.
 
-## Features
+✅ **iOS 14.0+** - Supports modern iOS versions
 
-✅ **Easy Integration** - Simple method channel communication  
-✅ **WebView Support** - Built-in payment page display with WKWebView  
-✅ **Callback Handling** - Get notified when payment completes  
-✅ **Error Handling** - Comprehensive logging and error messages  
-✅ **iOS 14.0+** - Supports modern iOS versions  
-✅ **Swift Ready** - Fully compatible with Swift 5.0+
+---
+
+## Prerequisites
+
+Before integrating HyperpayPtspSdk, you must have:
+
+1. **Flutter installed** in your iOS project
+   - The SDK is built on Flutter and requires Flutter to be present
+   - If not already using Flutter, follow [Flutter iOS integration guide](https://docs.flutter.dev/add-to-app/ios/project-setup)
+
+2. **CocoaPods** installed
+   ```bash
+   sudo gem install cocoapods
+   ```
+
+3. **Xcode 14.0+** with iOS 14.0+ support
 
 ---
 
@@ -22,7 +32,8 @@ The Hyperpay PTSP SDK is a complete payment processing solution for iOS applicat
 1. **Add to your Podfile:**
 
 ```ruby
-pod 'HyperpayPtspSdk', '~> 1.0.0'
+pod 'HyperpayPtspSdk'
+pod 'Flutter'  # Required dependency
 ```
 
 2. **Install dependencies:**
@@ -37,23 +48,67 @@ pod install
 open YourApp.xcworkspace
 ```
 
-### Option 2: Manual Framework
+⚠️ **IMPORTANT**: Always use `.xcworkspace` (not `.xcodeproj`) after running `pod install`
 
-1. Download `HyperpayPtspSdk.xcframework`
-2. In Xcode:
-   - Select your project
-   - Go to Build Phases → Link Binary With Libraries
-   - Add `HyperpayPtspSdk.xcframework`
+### Option 2: Manual Framework (Embed & Sign Approach)
+
+1. Download `HyperpayPtspSdk.xcframework` from the [releases page](https://github.com/HyperpayOpenSource/hyperpay-ptsp-ios/releases)
+
+2. In Xcode, drag the framework into your project's **Frameworks** folder
+
+3. Select your project → **Build Phases** → **Link Binary With Libraries**
+   - Click **+** and add: `HyperpayPtspSdk.framework`, `Flutter.framework`, and any plugins
+   - For each framework, click the row and set **Embed** dropdown to **"Embed & Sign"**
+
+4. Configure Build Settings for your target:
+   ```
+   BRIDGING_HEADER = "YourApp/YourApp-Bridging-Header.h"
+   FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/Frameworks"
+   SWIFT_MODULE_SEARCH_PATHS = "$(SRCROOT)/Frameworks"
+   CODE_SIGN_STYLE = Automatic
+   ```
+
+5. Add a **Bridging Header** (see [Step 0](#step-0-create-bridging-header-for-manual-integration))
 
 ---
 
 ## Setup Steps
 
+### Step 0: Create Bridging Header (For Manual Integration)
+
+**Purpose:** Allow Swift code to import Objective-C/C headers from Flutter framework.
+
+Create a new file `YourApp-Bridging-Header.h`:
+
+```objc
+//
+//  YourApp-Bridging-Header.h
+//
+
+#ifndef YourApp_Bridging_Header_h
+#define YourApp_Bridging_Header_h
+
+// Import Flutter framework
+#import <Flutter/Flutter.h>
+
+@class FlutterViewController;
+@class FlutterMethodChannel;
+
+#endif
+```
+
+In Xcode Build Settings, set:
+- **BRIDGING_HEADER** = `YourApp/YourApp-Bridging-Header.h`
+
+⚠️ **Note:** CocoaPods integration handles this automatically. Only needed for manual framework integration.
+
+---
+
 ### Step 1: Initialize Flutter Engine in AppDelegate
 
-Set up the Flutter engine when your app launches:
+**Purpose:** Set up the Flutter engine when your app launches to enable communication between iOS and the payment SDK.
 
-```swift
+```swift 
 import UIKit
 import Flutter
 
@@ -82,86 +137,80 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
 ---
 
-### Step 2: Setup MethodChannel in Your View Controller
+### Step 2: Setup Flutter MethodChannel
 
-Create a method channel to communicate with Flutter:
+**Purpose:** Create a communication bridge with the Flutter SDK from your ViewController.
 
 ```swift
 import UIKit
+import Flutter
 
 class PaymentViewController: UIViewController {
     private var channel: FlutterMethodChannel?
-    private var flutterEngine: FlutterEngine?
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        setupFlutter()
+        setupFlutterChannel()
     }
 
-    private func setupFlutter() {
+    private func setupFlutterChannel() {
         guard let appDelegate = UIApplication.shared.delegate as? AppDelegate,
               let engine = appDelegate.flutterEngine else {
             print("❌ Failed to get Flutter engine")
             return
         }
 
-        flutterEngine = engine
         channel = FlutterMethodChannel(
             name: "com.hyperpay.ptsp/sdk",
             binaryMessenger: engine.binaryMessenger
         )
 
-        // Listen for payment results from Flutter
-        channel?.setMethodCallHandler { [weak self] call, result in
-            if call.method == "onPaymentResult" {
-                let args = call.arguments as? [String: Any] ?? [:]
-                self?.handlePaymentResult(args)
-                result(nil)
-            }
-        }
-
         print("✅ MethodChannel initialized")
-    }
-
-    private func handlePaymentResult(_ result: [String: Any]) {
-        let status = result["status"] as? String ?? "unknown"
-        let transactionId = result["transactionId"] as? String ?? "N/A"
-        print("📲 Payment Result: \(status) - \(transactionId)")
     }
 }
 ```
 
 **Key points:**
 
-- Channel name must be: `com.hyperpay.ptsp/sdk`
-- Listen for `onPaymentResult` callback
-- Store reference to engine
+- Channel name: `com.hyperpay.ptsp/sdk`
+- Access the engine from AppDelegate
+- Channel is ready for payment operations
 
 ---
 
-### Step 3: Call SDK Methods in Sequence
+### Execute Payment Operations
 
-To process a payment, follow this sequence:
+Process payment in sequence using the initialized MethodChannel:
 
-**Step 3A - Initialize SDK:**
+#### Step 1 - Initialize SDK
+
+Initialize the SDK with your API credentials. **The API key is stored and reused for all subsequent calls—you only need to pass it once.**
 
 ```swift
 guard let channel = channel else { return }
 
 channel.invokeMethod("initialize", arguments: [
     "apiKey": "your_api_key_here",
-    "baseUrl": "env"  // e.g., "staging" or "production"
+    "environment": "staging"  // or "production"
 ]) { result in
     if result is FlutterError {
         print("❌ Initialize failed")
         return
     }
     print("✅ SDK initialized")
-    // Continue to Step 3B
 }
 ```
 
-**Step 3B - Set Payment Token:**
+**Parameters:**
+
+- `apiKey`: Your Hyperpay merchant API key (stored internally, reused for all operations)
+- `environment`: Deployment environment ("staging" or "production")
+
+---
+
+#### Step 2 - Set Payment Token
+
+Set the payment token received from your backend:
 
 ```swift
 channel.invokeMethod("setToken", arguments: [
@@ -172,45 +221,30 @@ channel.invokeMethod("setToken", arguments: [
         return
     }
     print("✅ Token set")
-    // Continue to Step 3C
 }
 ```
 
-**Step 3C - Get Payment URL:**
+**Parameters:**
 
-```swift
-channel.invokeMethod("getPaymentUrl", arguments: nil) { result in
-    guard let paymentUrl = result as? String else {
-        print("❌ Failed to get payment URL")
-        return
-    }
+- `token`: Payment token obtained from [Getting Payment Token](#getting-api-key--token) 
 
-    print("✅ Got payment URL: \(paymentUrl)")
-    // Proceed to Step 4
-    self.openPaymentWebView(url: paymentUrl)
-}
-```
+---
 
-**Flow:**
+**Payemnt Cycle Flow:**
 
 ```
-Initialize → Set Token → Get Payment URL → Open WebView → User Pays → Callback
+Set Token → Process Payment → Callback
 ```
 
 ---
 
-### Step 4: Verify Payment Status via Status API
+### Verify Payment Status via Status API
 
-After the user completes the payment flow and the WebView closes, verify the payment status using the **Status API** from your backend server to confirm payment completion:
+Note: The callback does not return the final payment status.
+It only confirms that the transaction request was successfully processed by the payment gateway.
 
-```
-Verify payment status server-to-server using the Status API endpoint:
-
-GET https://ptsp-stg.hyperpay.com/v1/status/{merchant-reference}
-Header: Authorization: Bearer {YOUR_API_KEY}
-```
-
-**Why:** Confirms the transaction was processed successfully on the payment gateway.
+After the user completes the payment flow, you must verify the actual payment result from your backend by calling the
+[`Status API`](https://hyperpayptsp.docs.apiary.io/#) to confirm that the payment was completed successfully.
 
 ---
 
@@ -220,138 +254,19 @@ Header: Authorization: Bearer {YOUR_API_KEY}
 
 Your merchant API key from Hyperpay:
 
-- **Where to get it**: https://dashboard.hyperpay.com/api-keys (will be provided later)
-- **Refferance**: `TODO:- `
+- **How to get it**: Contact Hyperpay support or visit your merchant dashboard
+- **Used in**: `initialize()` method
+- **Stored**: The API key is securely stored internally after initialization and reused for all payment operations—**you only pass it once**
+- **Reference**: [`Hyperpay PTSP Documentation`](https://hyperpayptsp.docs.apiary.io/#)
 
 ### 2. Payment Token
 
 Token generated from your backend server:
 
-- **Your backend calls**: `POST https://api.example.com/generate-token`
+- **Your backend calls**: `GET /v1/payment-link`
 - **Your backend receives**: Payment token (string)
 - **Pass to SDK**: Use in `setToken()` method
-- **Example response**:
-```json
-{
-  "token": "eyJhbGciOiJIUzI1NiIs..."
-}
-````
-- **Refferance**: `TODO:- `
-
-**Contact support:** Email support@hyperpay.com or visit https://docs.hyperpay.com for API key registration and token generation documentation.
-
----
-
-## API Reference
-
-### Initialize
-
-```swift
-channel.invokeMethod("initialize", arguments: [
-    "apiKey": String,
-    "baseUrl": String
-])
-```
-
-**Parameters:**
-
-- `apiKey`: Your Hyperpay merchant key
-- `baseUrl`: enviroment
-
-**Response:**
-
-- Success: Returns null
-- Error: FlutterError
-
----
-
-### Set Token
-
-```swift
-channel.invokeMethod("setToken", arguments: [
-    "token": String
-])
-```
-
-**Parameters:**
-
-- `token`: Payment token from your backend
-
-**Response:**
-
-- Success: Returns null
-- Error: FlutterError
-
----
-
-### Get Payment URL
-
-```swift
-channel.invokeMethod("getPaymentUrl", arguments: nil) { result in
-    let paymentUrl = result as? String // e.g., "https://hypbill.com/xxxxx"
-}
-```
-
-**Returns:**
-
-- `String`: Payment page URL to load in WebView
-
----
-
-### Payment Result Callback
-
-Triggered when payment completes:
-
-```swift
-channel.setMethodCallHandler { call, result in
-    if call.method == "onPaymentResult" {
-        let args = call.arguments as? [String: Any]
-        let status = args?["status"] as? String      // "success" or "failed"
-        let transactionId = args?["transactionId"] as? String
-        let message = args?["message"] as? String
-
-        result(nil)
-    }
-}
-```
-
----
-
-## Response Examples
-
-### Success
-
-```json
-{
-  "status": "success",
-  "transactionId": "22cd494075342e433091769ad27e666c",
-  "message": "Payment completed successfully"
-}
-```
-
-### Failure
-
-```json
-{
-  "status": "failed",
-  "transactionId": "",
-  "message": "Payment was cancelled by user"
-}
-```
-
----
-
-## Complete Integration Checklist
-
-- [ ] Add `HyperpayPtspSdk` pod to Podfile
-- [ ] Run `pod install`
-- [ ] Initialize FlutterEngine in AppDelegate
-- [ ] Create MethodChannel in your ViewController
-- [ ] Get API key from Hyperpay dashboard
-- [ ] Get payment token from your backend
-- [ ] Call `initialize()` → `setToken()` → `getPaymentUrl()`
-- [ ] Display payment WebView
-- [ ] Verify Payment Status via Status API
+- **Reference**: [`Hyperpay PTSP Documentation`](https://hyperpayptsp.docs.apiary.io/#)
 
 ---
 
@@ -362,7 +277,7 @@ channel.setMethodCallHandler { call, result in
 | **FlutterEngine is nil**    | Check AppDelegate setup, ensure `flutterEngine?.run()` is called |
 | **MethodChannel errors**    | Verify channel name: `com.hyperpay.ptsp/sdk`                     |
 | **WebView won't load**      | Check payment URL is valid and internet is enabled               |
-| **Payment never completes** | Verify success/failure URL patterns in `checkPaymentStatus()`    |
+| **Payment never completes** | Check network connectivity and API credentials                   |
 | **CocoaPods fails**         | Run `pod repo update` then `pod install --repo-update`           |
 
 ---
@@ -371,9 +286,8 @@ channel.setMethodCallHandler { call, result in
 
 For issues or questions:
 
-- Email: support@hyperpay.com
-- Documentation: https://docs.hyperpay.com
-- GitHub Issues: https://github.com/hyperpay/ptsp-sdk-ios/issues
+- Email: technical@hyperpay.com
+- GitHub Issues: https://github.com/HyperpayOpenSource/hyperpay-ptsp-ios/issues
 
 ---
 
