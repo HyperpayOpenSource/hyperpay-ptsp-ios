@@ -1,7 +1,8 @@
 Pod::Spec.new do |s|
   s.name             = 'HyperpayPtspSdk'
-  s.version          = '1.0.3'
+  s.version          = '1.0.5'
   s.summary          = 'Hyperpay PTSP Payment SDK for iOS'
+  s.readme           = 'https://raw.githubusercontent.com/HyperpayOpenSource/hyperpay-ptsp-ios/main/README.md'
   s.description      = 'Complete payment processing SDK with WebView integration for seamless payment experiences'
   
   s.homepage         = 'https://github.com/HyperpayOpenSource/hyperpay-ptsp-ios'
