@@ -13,10 +13,12 @@ The Hyperpay PTSP SDK is a complete payment processing solution for iOS applicat
 Before integrating HyperpayPtspSdk, you must have:
 
 1. **Flutter installed** in your iOS project
+
    - The SDK is built on Flutter and requires Flutter to be present
    - If not already using Flutter, follow [Flutter iOS integration guide](https://docs.flutter.dev/add-to-app/ios/project-setup)
 
 2. **CocoaPods** installed
+
    ```bash
    sudo gem install cocoapods
    ```
@@ -57,10 +59,12 @@ open YourApp.xcworkspace
 2. In Xcode, drag the framework into your project's **Frameworks** folder
 
 3. Select your project → **Build Phases** → **Link Binary With Libraries**
+
    - Click **+** and add: `HyperpayPtspSdk.framework`, `Flutter.framework`, and any plugins
    - For each framework, click the row and set **Embed** dropdown to **"Embed & Sign"**
 
 4. Configure Build Settings for your target:
+
    ```
    BRIDGING_HEADER = "YourApp/YourApp-Bridging-Header.h"
    FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/Frameworks"
@@ -98,6 +102,7 @@ Create a new file `YourApp-Bridging-Header.h`:
 ```
 
 In Xcode Build Settings, set:
+
 - **BRIDGING_HEADER** = `YourApp/YourApp-Bridging-Header.h`
 
 ⚠️ **Note:** CocoaPods integration handles this automatically. Only needed for manual framework integration.
@@ -108,7 +113,7 @@ In Xcode Build Settings, set:
 
 **Purpose:** Set up the Flutter engine when your app launches to enable communication between iOS and the payment SDK.
 
-```swift 
+```swift
 import UIKit
 import Flutter
 
@@ -226,7 +231,7 @@ channel.invokeMethod("setToken", arguments: [
 
 **Parameters:**
 
-- `token`: Payment token obtained from [Getting Payment Token](#getting-api-key--token) 
+- `token`: Payment token obtained from [Getting Payment Token](#getting-api-key--token)
 
 ---
 
